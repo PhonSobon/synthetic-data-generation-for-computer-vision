@@ -27,76 +27,83 @@ from helper.calculation import calculate_transformed_bbox, calculate_average_col
 
 
 def create_text_image_with_bbox():
-    text = random.choice(TEXT_WORDS)
+    # Select multiple random words (adjust max_words as needed)
+    max_words = 10  # Maximum number of words to place
+    texts = random.choices(TEXT_WORDS, k=max_words)
 
     bg = get_random_background()
     base_width, base_height = bg.size
-
-    # Get dynamically sized font
-    font, text_width, text_height = get_dynamic_font(text, base_width, base_height)
-    
-    # Random position with padding
-    max_x = base_width - text_width
-    max_y = base_height - text_height
-    x = random.randint(0, max_x) if max_x > 0 else 0
-    y = random.randint(0, max_y) if max_y > 0 else 0
-
-    # Draw text
     draw = ImageDraw.Draw(bg)
-    text_color = contrast_color(calculate_average_color(bg))
-    draw.text((x, y), text, fill=text_color, font=font)
+    annotations = []
 
-    # Apply random affine transformation
-    # if random.random() < 0.5:
-    #     scale_x = random.uniform(0.8, 1.2)
-    #     scale_y = random.uniform(0.8, 1.2)
-    #     shear_x = random.uniform(-0.2, 0.2)
-    #     shear_y = random.uniform(-0.2, 0.2)
+    for text in texts:
+        # Get font and text dimensions
+        font, text_width, text_height = get_dynamic_font(text, base_width, base_height)
         
-    #     bg = bg.transform(
-    #         bg.size,
-    #         Image.Transform.AFFINE,
-    #         (scale_x, shear_x, -x * (scale_x - 1) - shear_x * y,
-    #          shear_y, scale_y, -y * (scale_y - 1) - shear_y * x)
-    #     )
+        # Calculate available position space
+        max_x = base_width - text_width
+        max_y = base_height - text_height
+        x = random.randint(0, max_x) if max_x > 0 else 0
+        y = random.randint(0, max_y) if max_y > 0 else 0
 
-    # Resize to target size
+        # Get color contrasting with the specific region
+        region = bg.crop((x, y, x + text_width, y + text_height))
+        text_color = contrast_color(calculate_average_color(region))
+        
+        # Draw text and store coordinates
+        draw.text((x, y), text, fill=text_color, font=font)
+        annotations.append((x, y, text_width, text_height))
+
+    # Resize image
     bg = bg.resize(IMAGE_SIZE)
-    
-    # Calculate transformed coordinates
     scale_x = IMAGE_SIZE[0] / base_width
     scale_y = IMAGE_SIZE[1] / base_height
-    x = x * scale_x
-    y = y * scale_y
-    text_width *= scale_x
-    text_height *= scale_y
 
-    # Ensure coordinates are within bounds
-    x = max(0, min(x, IMAGE_SIZE[0] - 1))
-    y = max(0, min(y, IMAGE_SIZE[1] - 1))
-    text_width = max(1, min(text_width, IMAGE_SIZE[0] - x))
-    text_height = max(1, min(text_height, IMAGE_SIZE[1] - y))
+    yolo_annotations = []
+    for (x, y, w, h) in annotations:
+        # Scale coordinates
+        scaled_x = x * scale_x
+        scaled_y = y * scale_y
+        scaled_w = w * scale_x
+        scaled_h = h * scale_y
 
-    # YOLO format
-    x_center = (x + text_width / 2) / IMAGE_SIZE[0]
-    y_center = (y + text_height / 2) / IMAGE_SIZE[1]
-    w = text_width / IMAGE_SIZE[0]
-    h = text_height / IMAGE_SIZE[1]
+        # Clamp values to image boundaries
+        scaled_x = max(0, min(scaled_x, IMAGE_SIZE[0] - 1))
+        scaled_y = max(0, min(scaled_y, IMAGE_SIZE[1] - 1))
+        scaled_w = max(1, min(scaled_w, IMAGE_SIZE[0] - scaled_x))
+        scaled_h = max(1, min(scaled_h, IMAGE_SIZE[1] - scaled_y))
 
-    return bg, (0, x_center, y_center, w, h)
+        # Convert to YOLO format
+        x_center = (scaled_x + scaled_w / 2) / IMAGE_SIZE[0]
+        y_center = (scaled_y + scaled_h / 2) / IMAGE_SIZE[1]
+        width_norm = scaled_w / IMAGE_SIZE[0]
+        height_norm = scaled_h / IMAGE_SIZE[1]
 
-# === GENERATION LOOP ===
+        yolo_annotations.append((0, x_center, y_center, width_norm, height_norm))
 
-for i in range(NUM_IMAGES):
-    img, bbox = create_text_image_with_bbox()
-    
-    # Apply post-processing artifacts
-    img = apply_artifact(img)
-    
-    # Save image and label
-    image_filename = f"img_{i:04d}.png"
-    img.save(os.path.join(SAVE_DIR, image_filename))
-    
-    label_filename = f"img_{i:04d}.txt"
-    with open(os.path.join(LABEL_DIR, label_filename), 'w') as f:
-        f.write(f"{bbox[0]} {bbox[1]:.6f} {bbox[2]:.6f} {bbox[3]:.6f} {bbox[4]:.6f}\n")
+    return bg, yolo_annotations
+
+
+
+
+
+
+
+
+
+if __name__ == "__main__":
+    for i in range(NUM_IMAGES):
+        img, bbox = create_text_image_with_bbox()
+        
+        # Apply post-processing artifacts
+        img = apply_artifact(img)
+        
+        # Save image and label
+        image_filename = f"img_{i:04d}.png"
+        img.save(os.path.join(SAVE_DIR, image_filename))
+        
+        label_filename = f"img_{i:04d}.txt"
+        with open(os.path.join(LABEL_DIR, label_filename), 'w') as f:
+            for box in bbox:
+                f.write(f"{box[0]} {box[1]:.6f} {box[2]:.6f} {box[3]:.6f} {box[4]:.6f}\n")
+            
