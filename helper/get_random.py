@@ -43,8 +43,10 @@ def get_dynamic_font(text, max_width, max_height):
 
 def get_random_background():
 
-    base_width = random.randint(int(IMAGE_SIZE[0] * 0.7), int(IMAGE_SIZE[0] * 1.3))
-    base_height = random.randint(int(IMAGE_SIZE[1] * 0.7), int(IMAGE_SIZE[1] * 1.3))
+    # base_width = random.randint(int(IMAGE_SIZE[0] * 0.7), int(IMAGE_SIZE[0] * 1.3))
+    # base_height = random.randint(int(IMAGE_SIZE[1] * 0.7), int(IMAGE_SIZE[1] * 1.3))
+
+    target_size = IMAGE_SIZE
 
     random_choice = random.choice(["image", "color"])
 
@@ -53,10 +55,13 @@ def get_random_background():
         bg_images = [os.path.join(BACKGROUND_IMAGES_DIR, f) for f in os.listdir(BACKGROUND_IMAGES_DIR)]
         if bg_images:
             bg = Image.open(random.choice(bg_images)).convert('RGB')
-            bg = bg.resize((base_width, base_height))
+            # bg = bg.resize((base_width, base_height))
+            bg = bg.resize(target_size)
         else:
-            bg = Image.new('RGB', (base_width, base_height),color=get_random_rgb())  # type: ignore
+            bg = Image.new('RGB', target_size, color=get_random_rgb())  # type: ignore
     else:
-        bg = Image.new('RGB', (base_width, base_height),color=get_random_rgb())  # type: ignore
+        bg = Image.new('RGB', target_size, color=get_random_rgb())  # type: ignore
+
+    bg = bg.resize(target_size)
 
     return bg

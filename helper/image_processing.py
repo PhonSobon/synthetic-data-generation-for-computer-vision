@@ -7,17 +7,19 @@ import cv2
 def apply_artifact(img):
     img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
     
-    if random.random() < 0.5:
-        ksize = random.choice([3, 5])
-        img_cv = cv2.GaussianBlur(img_cv, (ksize, ksize), 0)
+    # if random.random() < 0.3:
+    #     ksize = 3
+    #     # ksize = random.choice([3, 5])
+    #     img_cv = cv2.GaussianBlur(img_cv, (ksize, ksize), 0)
 
     if random.random() < 0.5:
-        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), random.randint(20, 70)]
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), random.randint(50, 80)]
         _, encimg = cv2.imencode('.jpg', img_cv, encode_param)
         img_cv = cv2.imdecode(encimg, 1)
 
     if random.random() < 0.3:
-        size = random.choice([3, 5])
+        size = 3
+        # size = random.choice([3, 5])
         kernel_motion_blur = np.zeros((size, size))
         kernel_motion_blur[int((size - 1)/2), :] = np.ones(size)
         kernel_motion_blur /= size
