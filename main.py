@@ -6,10 +6,12 @@ import dotenv
 
 dotenv.load_dotenv()
 
-TEXT_WORDS=[
-    "ខ្ញុំ", "ស្រឡាញ់", "ភាសាខ្មែរ", "សូម", "ស្វាគមន៍", "ព្រះរាជាណាចក្រ",
-    "សាលារៀន", "បច្ចេកវិទ្យា", "រាជធានី", "ភ្នំពេញ", "ជំនាញ", "បច្ចេកទេស"
-]
+with open("oscar_kh_1_cleaned.txt", "r", encoding='utf-8') as f:
+    TEXT_WORDS = f.read().splitlines()
+    if not TEXT_WORDS:
+        print("No words found in the text file.")
+        exit()
+
 SAVE_DIR = os.getenv("SAVE_DIR", "synthetic_images/")
 LABEL_DIR = os.getenv("LABEL_DIR", "labels/")
 IMAGE_SIZE = tuple(map(int, os.getenv("IMAGE_SIZE", "725,450").split(",")))
@@ -23,7 +25,7 @@ IMG_PADDING = int(os.getenv("IMG_PADDING", 30))
 # === HELPER FUNCTIONS ===
 from helper.get_random import generate_random_paragraph, get_random_rgb, get_dynamic_font, get_random_background
 from helper.get_color import contrast_color
-from helper.image_processing import apply_artifact, apply_text_transform
+from helper.image_processing import apply_artifact, apply_text_transform, adjust_brightness_contrast
 from helper.text import wrap_text
 from helper.calculation import calculate_transformed_bbox, calculate_average_color
 
@@ -168,6 +170,8 @@ if __name__ == "__main__":
         # Apply post-processing artifacts
         img = apply_artifact(img)
         
+        img = adjust_brightness_contrast(img, (0.8, 1.2), (0.8, 1.2))
+
         # Save image and label
         image_filename = f"img_{i:04d}.png"
         img.save(os.path.join(SAVE_DIR, image_filename))
@@ -177,3 +181,4 @@ if __name__ == "__main__":
             for box in bbox:
                 f.write(f"{box[0]} {box[1]:.6f} {box[2]:.6f} {box[3]:.6f} {box[4]:.6f}\n")
             
+        print(f"Saved {image_filename} and {label_filename}")

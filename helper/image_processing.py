@@ -53,3 +53,31 @@ def apply_text_transform(text_layer):
     )
     
     return transformed, transform_params
+
+
+from PIL import ImageEnhance
+import random
+
+def adjust_brightness_contrast(image, brightness_range=(0.8, 1.2), contrast_range=(0.8, 1.2)):
+    """
+    Adjust the brightness and contrast of an image randomly within specified ranges.
+
+    Args:
+        image (PIL.Image.Image): The input image.
+        brightness_range (tuple): Min and max multiplier for brightness adjustment.
+        contrast_range (tuple): Min and max multiplier for contrast adjustment.
+
+    Returns:
+        PIL.Image.Image: The adjusted image.
+    """
+    # Randomly adjust brightness
+    brightness_factor = random.uniform(*brightness_range)
+    enhancer = ImageEnhance.Brightness(image)
+    image = enhancer.enhance(brightness_factor)
+
+    # Randomly adjust contrast
+    contrast_factor = random.uniform(*contrast_range)
+    enhancer = ImageEnhance.Contrast(image)
+    image = enhancer.enhance(contrast_factor)
+
+    return image
