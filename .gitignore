@@ -1,0 +1,17 @@
+.env
+
+background/
+
+fonts/
+
+*/__pycache__/
+
+__pycache__/
+
+synthetic_images/
+
+synthetic_labels/
+
+utils/
+
+old/
