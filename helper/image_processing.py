@@ -29,55 +29,31 @@ def apply_artifact(img):
 
 
 
-def apply_text_transform(text_layer):
-    # Random affine transformation matrix
-    transform_params = {
-        'scale': (random.uniform(0.8, 1.2), random.uniform(0.8, 1.2)),
-        'shear': (random.uniform(-0.2, 0.2), random.uniform(-0.2, 0.2)),
-        'translate': (random.randint(-5, 5), random.randint(-5, 5))
-    }
-    
-    # Apply transformation
-    transformed = text_layer.transform(
-        text_layer.size,
-        Image.Transform.AFFINE,
-        [
-            transform_params['scale'][0],  # x-scale
-            transform_params['shear'][0],  # x-shear
-            transform_params['translate'][0],
-            transform_params['shear'][1],  # y-shear
-            transform_params['scale'][1],  # y-scale
-            transform_params['translate'][1]
-        ],
-        resample=Image.Resampling.BILINEAR
-    )
-    
-    return transformed, transform_params
+import cv2
+import numpy as np
+from PIL import Image
 
-
-from PIL import ImageEnhance
-import random
-
-def adjust_brightness_contrast(image, brightness_range=(0.8, 1.2), contrast_range=(0.8, 1.2)):
+def adjust_brightness_contrast_alpha_beta(image, alpha_range=(0.8, 1.2), beta_range=(-50, 50)):
     """
-    Adjust the brightness and contrast of an image randomly within specified ranges.
+    Adjust the brightness and contrast of an image using alpha (contrast) and beta (brightness).
 
     Args:
         image (PIL.Image.Image): The input image.
-        brightness_range (tuple): Min and max multiplier for brightness adjustment.
-        contrast_range (tuple): Min and max multiplier for contrast adjustment.
+        alpha_range (tuple): Min and max multiplier for contrast adjustment.
+        beta_range (tuple): Min and max value for brightness adjustment.
 
     Returns:
         PIL.Image.Image: The adjusted image.
     """
-    # Randomly adjust brightness
-    brightness_factor = random.uniform(*brightness_range)
-    enhancer = ImageEnhance.Brightness(image)
-    image = enhancer.enhance(brightness_factor)
+    # Convert PIL image to OpenCV format (numpy array)
+    img_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
-    # Randomly adjust contrast
-    contrast_factor = random.uniform(*contrast_range)
-    enhancer = ImageEnhance.Contrast(image)
-    image = enhancer.enhance(contrast_factor)
+    # Randomly select alpha (contrast) and beta (brightness) values
+    alpha = np.random.uniform(*alpha_range)  # Contrast control
+    beta = np.random.uniform(*beta_range)    # Brightness control
 
-    return image
+    # Apply the adjustments
+    adjusted = cv2.convertScaleAbs(img_cv, alpha=alpha, beta=beta)
+
+    # Convert back to PIL format
+    return Image.fromarray(cv2.cvtColor(adjusted, cv2.COLOR_BGR2RGB))

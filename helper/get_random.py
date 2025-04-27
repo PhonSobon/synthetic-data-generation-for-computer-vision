@@ -16,20 +16,15 @@ BACKGROUND_IMAGES_DIR = os.getenv("BACKGROUND_IMAGES_DIR", "background/")
 MIN_PARAG_LENGTH = int(os.getenv("MIN_PARAGRAPH_LENGTH", 3))
 MAX_PARAG_LENGTH = int(os.getenv("MAX_PARAGRAPH_LENGTH", 15))
 
-def generate_random_paragraph(text_words):
-    num_words = random.randint(MIN_PARAG_LENGTH, MAX_PARAG_LENGTH)
-    return ' '.join(random.choices(text_words, k=num_words))
 
-
-def get_random_rgb():
-    return tuple(np.random.randint(0, 256, size=3))
-
-
-def get_dynamic_font(text, max_width, max_height):
-    """Find font size that ensures text fits within specified dimensions"""
+def get_random_font():
     fonts = [os.path.join(FONT_DIR, f)
-             for f in os.listdir(FONT_DIR) if f.endswith('.ttf')]
+            for f in os.listdir(FONT_DIR) if f.endswith('.ttf')]
     chosen_font = random.choice(fonts)
+    return chosen_font
+
+def get_dynamic_font(text, chosen_font,max_width, max_height):
+    """Find font size that ensures text fits within specified dimensions"""
 
     for size in range(MAX_FONT_SIZE, MIN_FONT_SIZE-1, -1):
         font = ImageFont.truetype(chosen_font, size)

@@ -1,6 +1,6 @@
 import os
 import random
-from PIL import Image, ImageDraw
+from PIL import ImageDraw
 import dotenv
 
 
@@ -23,11 +23,10 @@ MAX_PARAG_LENGTH = int(os.getenv("MAX_PARAG_LENGTH", 15))
 IMG_PADDING = int(os.getenv("IMG_PADDING", 30))
 
 # === HELPER FUNCTIONS ===
-from helper.get_random import generate_random_paragraph, get_random_rgb, get_dynamic_font, get_random_background
+from helper.get_random import get_dynamic_font, get_random_background, get_random_font
 from helper.get_color import contrast_color
-from helper.image_processing import apply_artifact, apply_text_transform, adjust_brightness_contrast
-from helper.text import wrap_text
-from helper.calculation import calculate_transformed_bbox, calculate_average_color
+from helper.image_processing import apply_artifact, adjust_brightness_contrast_alpha_beta
+from helper.calculation import calculate_average_color
 
 
 def create_text_image_with_bbox():
@@ -49,6 +48,7 @@ def create_text_image_with_bbox():
     
     return resized_image, yolo_annotations
 
+
 def draw_texts_on_image(bg, texts, content_width, content_height, padding, line_spacing):
     """Handle text positioning and drawing with paragraph layout"""
     draw = ImageDraw.Draw(bg)
@@ -59,9 +59,13 @@ def draw_texts_on_image(bg, texts, content_width, content_height, padding, line_
     max_line_height = 0
     
 
+    text_color = get_contrast_color(bg)
+    
+    chosen_font = get_random_font()
+
     for text in texts:
         # Get font and dimensions
-        font, text_width, text_height = get_dynamic_font(text, content_width, content_height)
+        font, text_width, text_height = get_dynamic_font(text, chosen_font, content_width, content_height)
         
         # Check if word fits in current line
         if current_x + text_width > (bg.width - padding):
@@ -75,7 +79,6 @@ def draw_texts_on_image(bg, texts, content_width, content_height, padding, line_
             break  # No more space in the image
 
         # Get contrast color for this position
-        text_color = get_contrast_color(bg, current_x, current_y, text_width, text_height)
         
         # Draw text
         draw.text((current_x, current_y), text, fill=text_color, font=font)
@@ -103,19 +106,22 @@ def calculate_text_position(base_w, base_h, text_w, text_h):
         random.randint(0, max_y) if max_y > 0 else 0
     )
 
-def get_contrast_color(image, x, y, w, h):
+# def get_contrast_color(image, x, y, w, h):
+#     """Get color that contrasts with background region with safety checks"""
+#     # Ensure crop coordinates stay within image bounds
+#     x0 = max(0, x)
+#     y0 = max(0, y)
+#     x1 = min(image.width, x + w)
+#     y1 = min(image.height, y + h)
+    
+#     if x0 >= x1 or y0 >= y1:
+#         return (0, 0, 0)  # Fallback color
+    
+#     region = image.crop((x0, y0, x1, y1))
+#     return contrast_color(calculate_average_color(image))
+def get_contrast_color(image):
     """Get color that contrasts with background region with safety checks"""
-    # Ensure crop coordinates stay within image bounds
-    x0 = max(0, x)
-    y0 = max(0, y)
-    x1 = min(image.width, x + w)
-    y1 = min(image.height, y + h)
-    
-    if x0 >= x1 or y0 >= y1:
-        return (0, 0, 0)  # Fallback color
-    
-    region = image.crop((x0, y0, x1, y1))
-    return contrast_color(calculate_average_color(region))
+    return contrast_color(calculate_average_color(image))
 
 def convert_to_yolo_format(annotations, orig_w, orig_h, target_size):
     """Convert coordinates to YOLO format"""
@@ -170,7 +176,7 @@ if __name__ == "__main__":
         # Apply post-processing artifacts
         img = apply_artifact(img)
         
-        img = adjust_brightness_contrast(img, (0.8, 1.2), (0.8, 1.2))
+        img = adjust_brightness_contrast_alpha_beta(img)
 
         # Save image and label
         image_filename = f"img_{i:04d}.png"
