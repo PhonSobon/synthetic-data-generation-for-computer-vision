@@ -1,18 +1,18 @@
-.env
 
-background/
-
-fonts/
 
 */__pycache__/
 
+.vscode/
+
 __pycache__/
+
+font_test_output/
 
 synthetic_images/
 
 synthetic_labels/
 
-utils/
+synthetic_xml_labels/
 
 old/
 

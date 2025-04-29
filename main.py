@@ -1,190 +1,302 @@
+from helper.image_processing import apply_artifact, rand_brightness_contrast, apply_motion_blur, apply_color_jitter
+from helper.get_color import get_contrast_color
+from helper.get_random import get_random_background, get_random_font, get_random_img_padding, get_random_line_spacing, get_random_word_padding, get_random_font_size
+from helper.yolo_coord import convert_to_yolo_format
+from helper.utils import read_text_file, save_label, save_xml_label
+from helper.xml_generator import generate_xml_content
 import os
 import random
-from PIL import ImageDraw
+from PIL import ImageDraw, ImageFont, Image
+import sys
 import dotenv
 
 
 dotenv.load_dotenv()
 
-with open("oscar_kh_1_cleaned.txt", "r", encoding='utf-8') as f:
-    TEXT_WORDS = f.read().splitlines()
-    if not TEXT_WORDS:
-        print("No words found in the text file.")
-        exit()
 
+# === CONFIGURATION ===
+
+# IMAGE SIZE
+image_size_str = os.getenv("IMAGE_SIZE", "775,550")
+image_size_list = list(map(int, image_size_str.split(',')))[:2]
+IMAGE_SIZE = image_size_list[0], image_size_list[1]
+
+# IMAGE SCALE
+MIN_IMG_SCALE = float(os.getenv("MIN_IMG_SCALE", 0.5))
+MAX_IMG_SCALE = float(os.getenv("MAX_IMG_SCALE", 2.0))
+
+# DIRECTORIES
+FONT_DIR = os.getenv("FONT_DIR", "fonts/")
 SAVE_DIR = os.getenv("SAVE_DIR", "synthetic_images/")
-LABEL_DIR = os.getenv("LABEL_DIR", "labels/")
-IMAGE_SIZE = tuple(map(int, os.getenv("IMAGE_SIZE", "725,450").split(",")))
+LABEL_DIR = os.getenv("LABEL_DIR", "synthetic_labels/")
+XML_DIR = os.getenv("XML_DIR", "synthetic_xml_labels/")
 BACKGROUND_IMAGES_DIR = os.getenv("BACKGROUND_IMAGES_DIR", "background/")
-NUM_IMAGES = int(os.getenv("NUM_IMAGES", 1))
-WORD_PADDING = int(os.getenv("WORD_PADDING", 10))
-LINE_SPACING = int(os.getenv("LINE_SPACING", 5))
-MAX_PARAG_LENGTH = int(os.getenv("MAX_PARAG_LENGTH", 15))
-IMG_PADDING = int(os.getenv("IMG_PADDING", 30))
 
-# === HELPER FUNCTIONS ===
-from helper.get_random import get_dynamic_font, get_random_background, get_random_font
-from helper.get_color import contrast_color
-from helper.image_processing import apply_artifact, adjust_brightness_contrast_alpha_beta
-from helper.calculation import calculate_average_color
+# FONT SIZE
+MIN_FONT_SIZE = int(os.getenv("MIN_FONT_SIZE", 20))
+MAX_FONT_SIZE = int(os.getenv("MAX_FONT_SIZE", 100))
+
+# IMAGE PADDING
+MIN_IMG_PADDING = int(os.getenv("MIN_IMG_PADDING", 10))
+MAX_IMG_PADDING = int(os.getenv("MAX_IMG_PADDING", 100))
+
+# LINE SPACING
+MIN_LINE_SPACING = int(os.getenv("MIN_LINE_SPACING", 6))
+MAX_LINE_SPACING = int(os.getenv("MAX_LINE_SPACING", 30))
+
+# WORD PADDING
+MIN_WORD_PADDING = int(os.getenv("MIN_WORD_PADDING", 2))
+MAX_WORD_PADDING = int(os.getenv("MAX_WORD_PADDING", 10))
+
+# TEXT FILE
+TEXT_FILE = os.getenv("TEXT_FILE", "oscar_kh_1_cleaned.txt")
+TEXT_WORDS = read_text_file(TEXT_FILE)
+
+# PARAGRAPH LENGTH
+MIN_PARAG_LENGTH = int(os.getenv("MIN_PARAG_LENGTH", 1))
+MAX_PARAG_LENGTH = int(os.getenv("MAX_PARAG_LENGTH", 5000))
+
+# BOUNDING BOX PADDING
+BBOX_WIDTH_PADDING = int(os.getenv("BBOX_WIDTH_PADDING", 1))  # Adjust as needed
+BBOX_HEIGHT_PADDING = int(os.getenv("BBOX_HEIGHT_PADDING", 2))  # Adjust as needed
+
+# ARTIFACTS
+ARTIFACT_POSSIBILITIES = float(os.getenv("ARTIFACT_POSSIBILITIES", 0.5))
+jpeg_compression_range_str = os.getenv("JPEG_COMPRESSION_RANGE", "50,90")
+JPEG_COMPRESSION_RANGE = tuple(map(int, jpeg_compression_range_str.split(',')))
+
+# MOTION BLUR
+MOTION_BLUR_POSSIBILITIES = float(os.getenv("MOTION_BLUR_POSSIBILITIES", 0.3))
+motion_blur_kernel_size_str = os.getenv("MOTION_BLUR_KERNEL_SIZE_RANGE", "3,3")
+MOTION_BLUR_KERNEL_SIZE_RANGE = tuple(
+    map(int, motion_blur_kernel_size_str.split(',')))
+
+# BRIGHTNESS ADJUSTMENT
+alpha_range_str = os.getenv("ALPHA_RANGE", "0.8,1.2")
+ALPHA_RANGE = tuple(map(float, alpha_range_str.split(',')))
+
+beta_range_str = os.getenv("BETA_RANGE", "-50,50")
+BETA_RANGE = tuple(map(int, beta_range_str.split(',')))
+
+# COLOR JITTER SETTINGS
+COLOR_JITTER_POSSIBILITES = float(os.getenv("COLOR_JITTER_POSSIBILITES", 0.3))
+HUE_DELTA = int(os.getenv("HUE_DELTA", 10))
+
+sat_scale_str = os.getenv("SAT_SCALE", "0.8,1.2")
+SAT_SCALE = tuple(map(float, sat_scale_str.split(',')))
+
+val_scale_str = os.getenv("VAL_SCALE", "0.8,1.2")
+VAL_SCALE = tuple(map(float, val_scale_str.split(',')))
+
+MAX_ROTATION = float(os.getenv("MAX_ROTATION", "5.0"))
+
+# NEW PADDING, LINE SPACING, WORD PADDING, FONT SIZE, FONT, Y, X
+POSSIBILITIES_FOR_NEW_PADDING = float(os.getenv("POSSIBILITIES_FOR_NEW_PADDING", 0.005))
+POSSIBILITIES_FOR_NEW_LINE_SPACING = float(os.getenv("POSSIBILITIES_FOR_NEW_LINE_SPACING", 0.005))
+POSSIBILITIES_FOR_NEW_WORD_PADDING = float(os.getenv("POSSIBILITIES_FOR_NEW_WORD_PADDING", 0.005))
+POSSIBILITIES_FOR_NEW_FONT_SIZE = float(os.getenv("POSSIBILITIES_FOR_NEW_FONT_SIZE", 0.005))
+POSSIBILITIES_FOR_NEW_FONT = float(os.getenv("POSSIBILITIES_FOR_NEW_FONT", 0.005))
+
+POSSIBILITIES_FOR_NEW_Y = float(os.getenv("POSSIBILITIES_FOR_NEW_Y", 0.005))
+new_y_range_str = os.getenv("NEW_Y_RANGE", "-5,10")
+new_y_range_list = list(map(int, new_y_range_str.split(',')))[:2]
+NEW_Y_RANGE = new_y_range_list[0], new_y_range_list[1]
+
+POSSIBILITIES_FOR_NEW_X = float(os.getenv("POSSIBILITIES_FOR_NEW_X", 0.005))
+new_x_range_str = os.getenv("NEW_X_RANGE", "-5,10")
+new_x_range_list = list(map(int, new_x_range_str.split(',')))[:2]
+NEW_X_RANGE = new_x_range_list[0], new_x_range_list[1]
+
+POSSIBILITIES_FOR_NEW_COLOR = float(os.getenv("POSSIBILITIES_FOR_NEW_COLOR", 0.005))
+
+# === END CONFIGURATION ===
 
 
-def create_text_image_with_bbox():
-    
-    bg, texts = prepare_base_image_and_texts(MAX_PARAG_LENGTH)
-    base_width, base_height = bg.size
-    
-    # Adjust available space for padding
-    content_width = base_width - 2 * IMG_PADDING
-    content_height = base_height - 2 * IMG_PADDING
-    
-    drawn_image, annotations = draw_texts_on_image(
-        bg, texts, content_width, content_height, IMG_PADDING, LINE_SPACING
+def create_text_image_with_bbox() -> tuple[Image.Image, list[list[tuple[str, tuple[float, float, float, float]]]], list[tuple[float, float, float, float]]]:
+    """Create an image with text and bounding boxes"""
+
+    text_len = random.randint(MIN_PARAG_LENGTH, MAX_PARAG_LENGTH)
+    texts = random.choices(TEXT_WORDS, k=text_len)
+
+    bg = get_random_background(IMAGE_SIZE, BACKGROUND_IMAGES_DIR, MIN_IMG_SCALE, MAX_IMG_SCALE)
+
+    drawn_image, lines, annotations = draw_texts_on_image(
+        bg,
+        texts,
+        FONT_DIR,
+        MIN_IMG_PADDING,
+        MAX_IMG_PADDING,
+        MIN_LINE_SPACING,
+        MAX_LINE_SPACING,
+        MIN_FONT_SIZE,
+        MAX_FONT_SIZE,
+        MIN_WORD_PADDING,
+        MAX_WORD_PADDING,
+
+        POSSIBILITIES_FOR_NEW_PADDING,
+        POSSIBILITIES_FOR_NEW_LINE_SPACING,
+        POSSIBILITIES_FOR_NEW_WORD_PADDING,
+        POSSIBILITIES_FOR_NEW_FONT_SIZE,
+        POSSIBILITIES_FOR_NEW_FONT,
+        POSSIBILITIES_FOR_NEW_Y, NEW_Y_RANGE,
+        POSSIBILITIES_FOR_NEW_X, NEW_X_RANGE,
+        POSSIBILITIES_FOR_NEW_COLOR,
+        BBOX_WIDTH_PADDING, BBOX_HEIGHT_PADDING,
     )
 
-    resized_image = drawn_image.resize(IMAGE_SIZE)
-    
-    yolo_annotations = convert_to_yolo_format(annotations, base_width, base_height, IMAGE_SIZE)
-    
-    return resized_image, yolo_annotations
+    return drawn_image, lines, annotations
 
 
-def draw_texts_on_image(bg, texts, content_width, content_height, padding, line_spacing):
-    """Handle text positioning and drawing with paragraph layout"""
+def draw_texts_on_image(
+    bg: Image.Image,
+    texts: list[str],
+    font_dir: str,
+    min_img_padding: int,
+    max_img_padding: int,
+    min_line_spacing: int,
+    max_line_spacing: int,
+    min_font_size: int,
+    max_font_size: int,
+    min_word_padding: int,
+    max_word_padding: int,
+    possibilities_for_new_padding: float,
+    possibilities_for_new_line_spacing: float,
+    possibilities_for_new_word_padding: float,
+    possibilities_for_new_font_size: float,
+    possibilities_for_new_font: float,
+    possibilities_for_new_y: float, new_y_range: tuple[int, int],
+    possibilities_for_new_x: float, new_x_range: tuple[int, int],
+    possibilities_for_new_color: float,
+    bbox_width_padding: int, bbox_height_padding: int,
+) -> tuple[Image.Image, list[list[tuple[str, tuple[float, float, float, float]]]], list[tuple[float, float, float, float]]]:
+    """
+    Draws a list of words onto `bg`, flowing them in lines
+    with fixed `font_size`. Returns the annotated image
+    plus a list of (x, y, w, h) for each drawn word.
+    """
+
+    x_padding, y_padding = get_random_img_padding(min_img_padding=min_img_padding, max_img_padding=max_img_padding)
+    line_spacing = get_random_line_spacing(min_line_spacing=min_line_spacing, max_line_spacing=max_line_spacing)
+    font_size = get_random_font_size(min_font_size=min_font_size, max_font_size=max_font_size)
+    word_padding = get_random_word_padding(min_word_padding=min_word_padding, max_word_padding=max_word_padding)
+
+    # Pick one font file at random, and load it once at `font_size`.
+    chosen_font_path = get_random_font(font_dir)
+    font = ImageFont.truetype(chosen_font_path, font_size)
+    
     draw = ImageDraw.Draw(bg)
     annotations = []
-    
-    current_x = padding
-    current_y = padding
+    current_line = []
+    lines = []
+
+    current_x = x_padding
+    current_y = y_padding
     max_line_height = 0
-    
 
-    text_color = get_contrast_color(bg)
-    
-    chosen_font = get_random_font()
+    # Pick a text color that contrasts with the background
+    text_color = get_contrast_color(bg, 0, 0, bg.width, bg.height)
 
-    for text in texts:
-        # Get font and dimensions
-        font, text_width, text_height = get_dynamic_font(text, chosen_font, content_width, content_height)
-        
-        # Check if word fits in current line
-        if current_x + text_width > (bg.width - padding):
-            # Move to new line
-            current_x = padding
+    for word in texts:
+        if random.random() < possibilities_for_new_padding:
+            x_padding, y_padding = get_random_img_padding(min_img_padding=min_img_padding, max_img_padding=max_img_padding)
+        if random.random() < possibilities_for_new_line_spacing:
+            line_spacing = get_random_line_spacing(min_line_spacing=min_line_spacing, max_line_spacing=max_line_spacing)
+        if random.random() < possibilities_for_new_font_size:
+            font_size = get_random_font_size(min_font_size=min_font_size, max_font_size=max_font_size)
+            font = ImageFont.truetype(chosen_font_path, font_size)
+        if random.random() < possibilities_for_new_font:
+            chosen_font_path = get_random_font(font_dir)
+            font = ImageFont.truetype(chosen_font_path, font_size)
+        if random.random() < possibilities_for_new_word_padding:
+            word_padding = get_random_word_padding(min_word_padding=min_word_padding, max_word_padding=max_word_padding)
+        if random.random() < possibilities_for_new_y:
+            current_y += random.randint(*new_y_range)
+        if random.random() < possibilities_for_new_x:
+            current_x += random.randint(*new_x_range)
+        if random.random() < possibilities_for_new_color:
+            text_color = get_contrast_color(bg, 0, 0, bg.width, bg.height)
+
+        # Measure this word
+        bbox = font.getbbox(word)
+        left, top, right, bottom = bbox  # Unpack the bbox values
+        text_width = right - left
+        text_height = bottom - top
+
+        # If it doesn’t fit on this line, wrap to next
+        if current_x + (text_width + word_padding) > (bg.width - x_padding):
+            if current_line:
+                lines.append(current_line)
+                current_line = []        # Save XML content
+            current_x = x_padding
             current_y += max_line_height + line_spacing
             max_line_height = 0
 
-        # Check if we have vertical space
-        if current_y + text_height > (bg.height - padding):
-            break  # No more space in the image
+        # If no more vertical space, stop early
+        if current_y + (top + text_height) > (bg.height - y_padding):  # Adjust with top offset
+            break
 
-        # Get contrast color for this position
+        draw.text((current_x, current_y), word, font=font, fill=text_color)
         
-        # Draw text
-        draw.text((current_x, current_y), text, fill=text_color, font=font)
-        annotations.append((current_x, current_y, text_width, text_height))
-        
-        # Update positioning variables
-        current_x += text_width + WORD_PADDING  # Add padding between words
-        if text_height > max_line_height:
-            max_line_height = text_height
+        # Calculate padded bounding box
+        x = current_x + left - bbox_width_padding  # Expand left
+        y = current_y + top - bbox_height_padding  # Expand top
+        text_width_padded = text_width + 2 * bbox_width_padding
+        text_height_padded = text_height + 2 * bbox_height_padding
 
-    return bg, annotations
+        word_info = (word, (x, y, text_width_padded, text_height_padded))
+        current_line.append(word_info)
+        annotations.append((x, y, text_width_padded, text_height_padded))
 
-def prepare_base_image_and_texts(max_words):
-    """Select random words and create base image"""
-    texts = random.choices(TEXT_WORDS, k=max_words)
-    bg = get_random_background()
-    return bg, texts
+        # Advance the cursor with the full width (including right)
+        current_x += (right - left) + word_padding  # Use right - left instead of text_width for consistency
+        max_line_height = max(max_line_height, (bottom - top))  # Use actual height
 
-def calculate_text_position(base_w, base_h, text_w, text_h):
-    """Calculate random position within safe boundaries"""
-    max_x = base_w - text_w
-    max_y = base_h - text_h
-    return (
-        random.randint(0, max_x) if max_x > 0 else 0,
-        random.randint(0, max_y) if max_y > 0 else 0
-    )
+    if current_line:
+        lines.append(current_line)
 
-# def get_contrast_color(image, x, y, w, h):
-#     """Get color that contrasts with background region with safety checks"""
-#     # Ensure crop coordinates stay within image bounds
-#     x0 = max(0, x)
-#     y0 = max(0, y)
-#     x1 = min(image.width, x + w)
-#     y1 = min(image.height, y + h)
-    
-#     if x0 >= x1 or y0 >= y1:
-#         return (0, 0, 0)  # Fallback color
-    
-#     region = image.crop((x0, y0, x1, y1))
-#     return contrast_color(calculate_average_color(image))
-def get_contrast_color(image):
-    """Get color that contrasts with background region with safety checks"""
-    return contrast_color(calculate_average_color(image))
-
-def convert_to_yolo_format(annotations, orig_w, orig_h, target_size):
-    """Convert coordinates to YOLO format"""
-    scale_x = target_size[0] / orig_w
-    scale_y = target_size[1] / orig_h
-    yolo_annotations = []
-    
-    for x, y, w, h in annotations:
-        # Scale coordinates
-        scaled = (
-            x * scale_x,
-            y * scale_y,
-            w * scale_x,
-            h * scale_y
-        )
-        
-        # Clamp to image boundaries
-        clamped = clamp_coordinates(*scaled, target_size)
-        
-        # Convert to YOLO format
-        yolo_annotations.append(calculate_yolo_values(*clamped, target_size))
-    
-    return yolo_annotations
-
-def clamp_coordinates(x, y, w, h, target_size):
-    """Ensure coordinates stay within image bounds"""
-    x = max(0, min(x, target_size[0] - 1))
-    y = max(0, min(y, target_size[1] - 1))
-    w = max(1, min(w, target_size[0] - x))
-    h = max(1, min(h, target_size[1] - y))
-    return (x, y, w, h)
-
-def calculate_yolo_values(x, y, w, h, target_size):
-    """Convert to YOLO normalized format"""
-    x_center = (x + w/2) / target_size[0]
-    y_center = (y + h/2) / target_size[1]
-    width_norm = w / target_size[0]
-    height_norm = h / target_size[1]
-    return (0, x_center, y_center, width_norm, height_norm)
-
-
-
-
-
+    return bg, lines, annotations
 
 
 
 if __name__ == "__main__":
-    for i in range(NUM_IMAGES):
-        img, bbox = create_text_image_with_bbox()
-        
-        # Apply post-processing artifacts
-        img = apply_artifact(img)
-        
-        img = adjust_brightness_contrast_alpha_beta(img)
+    sys.argv = sys.argv[1:]
 
-        # Save image and label
-        image_filename = f"img_{i:04d}.png"
-        img.save(os.path.join(SAVE_DIR, image_filename))
+    _from = int(sys.argv[0])
+    _to = int(sys.argv[1])
+    _step = int(sys.argv[2])
+
+    for i in range(_from, _to, _step):
+        img, lines, bbox = create_text_image_with_bbox()
+
+        img = apply_artifact(img, posssibility=ARTIFACT_POSSIBILITIES,
+                             possible_compression=JPEG_COMPRESSION_RANGE)
+        img = apply_motion_blur(img, posssibility=MOTION_BLUR_POSSIBILITIES,
+                                possible_size=MOTION_BLUR_KERNEL_SIZE_RANGE)
+        img = rand_brightness_contrast(
+            img, alpha_range=ALPHA_RANGE, beta_range=BETA_RANGE)
+
+        img = apply_color_jitter(img, possibility=COLOR_JITTER_POSSIBILITES, 
+                                 hue_delta=HUE_DELTA, sat_scale=SAT_SCALE, val_scale=VAL_SCALE)
+
+        bbox = convert_to_yolo_format(bbox, img.width, img.height, IMAGE_SIZE)
         
-        label_filename = f"img_{i:04d}.txt"
-        with open(os.path.join(LABEL_DIR, label_filename), 'w') as f:
-            for box in bbox:
-                f.write(f"{box[0]} {box[1]:.6f} {box[2]:.6f} {box[3]:.6f} {box[4]:.6f}\n")
-            
-        print(f"Saved {image_filename} and {label_filename}")
+        os.makedirs(SAVE_DIR, exist_ok=True)
+        os.makedirs(LABEL_DIR, exist_ok=True)
+        os.makedirs(XML_DIR, exist_ok=True)
+
+        image_filename = f"img_{i:05d}.png"
+        img.save(os.path.join(SAVE_DIR, image_filename))
+
+        label_filename = f"img_{i:05d}.txt"
+        save_label(bbox, os.path.join(LABEL_DIR, label_filename))
+
+        xml_content = generate_xml_content(
+            lines=lines,
+            image_filename=image_filename,
+            image_size=img.size
+        )
+
+        xml_filename = f"img_{i:05d}.xml"
+        save_xml_label(xml_content, os.path.join(XML_DIR, xml_filename))
+
+        print(f"Saved {image_filename} and {label_filename} and {xml_filename}")
