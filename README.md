@@ -135,7 +135,7 @@ The code here is working like python loop.
 
 ### Images
 
-![sample image](example_images\img_00000.png) 
+![sample image](https://github.com/Chanveasna-ENG/synthetic-data-generation-for-computer-vision/blob/main/example_images/img_00000.png) 
 
 ### YOLO Labels
 
@@ -190,7 +190,7 @@ The code here is working like python loop.
 
 ### Example from test.ipynb
 
-![sample image](example_images\image_2025-04-29_09-07-58.png) 
+![sample image](https://github.com/Chanveasna-ENG/synthetic-data-generation-for-computer-vision/blob/main/example_images/image_2025-04-29_09-07-58.png) 
 
 ---
 
