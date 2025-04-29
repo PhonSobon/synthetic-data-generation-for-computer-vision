@@ -117,7 +117,7 @@ Some important options you can control:
 
 ## 🧠 Example Usage
 
-Here’s how you create one synthetic image with labels:
+Here’s how you create one hundred synthetic image with labels:
 
 ```bash
 python3 main.py 0 100 1
