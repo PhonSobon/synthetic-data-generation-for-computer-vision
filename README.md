@@ -76,6 +76,7 @@ sudo apt install -y libgl1
 ├── README.md              # (this file)
 ├── requirements.txt        # Dependencies for the project
 └── test.ipynb             # Jupyter notebook for testing and visualization
+```
 
 ---
 
