@@ -187,6 +187,10 @@ The code here is working like python loop.
 </metadata>
 ```
 
+### Example from test.ipynb
+
+![sample image](example_images\image_2025-04-29_09-07-58.png) 
+
 ---
 
 ## 🚀 Future Plans
