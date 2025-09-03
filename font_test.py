@@ -23,7 +23,7 @@ def test_fonts(font_dir, output_dir):
                 d = ImageDraw.Draw(img)
                 
                 # Draw text
-                d.text((10, 50), "ឥណ្ឌូណេស៊ី", font=font, fill='black')
+                d.text((10, 50), "រដ្ឋធម្មនុញ្ញនៃព្រះរាជាណាចក្រកម្ពុជាគឺជាច្បាប់កំពូល។", font=font, fill='black')
                 
                 # Save image
                 img.save(output_path)

@@ -1,14 +1,15 @@
+import os
+import sys
+import random
+import dotenv
+from PIL import ImageDraw, ImageFont, Image
 from helper.image_processing import apply_artifact, rand_brightness_contrast, apply_motion_blur, apply_color_jitter
 from helper.get_color import get_contrast_color
 from helper.get_random import get_random_background, get_random_font, get_random_img_padding, get_random_line_spacing, get_random_word_padding, get_random_font_size
 from helper.yolo_coord import convert_to_yolo_format
 from helper.utils import read_text_file, save_label, save_xml_label
 from helper.xml_generator import generate_xml_content
-import os
-import random
-from PIL import ImageDraw, ImageFont, Image
-import sys
-import dotenv
+from helper.khmer_text_sorter import sort_text2sub
 
 
 dotenv.load_dotenv()
@@ -117,6 +118,7 @@ def create_text_image_with_bbox() -> tuple[Image.Image, list[list[tuple[str, tup
 
     text_len = random.randint(MIN_PARAG_LENGTH, MAX_PARAG_LENGTH)
     texts = random.choices(TEXT_WORDS, k=text_len)
+    texts = sort_text2sub(texts)
 
     bg = get_random_background(IMAGE_SIZE, BACKGROUND_IMAGES_DIR, MIN_IMG_SCALE, MAX_IMG_SCALE)
 
@@ -217,6 +219,7 @@ def draw_texts_on_image(
             text_color = get_contrast_color(bg, 0, 0, bg.width, bg.height)
 
         # Measure this word
+        # print(word)
         bbox = font.getbbox(word)
         left, top, right, bottom = bbox  # Unpack the bbox values
         text_width = right - left
