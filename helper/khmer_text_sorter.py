@@ -138,6 +138,20 @@ def is_RO(code: int) -> bool:
     return False
 
 
+def is_dependent_only(code: int) -> bool:
+    """
+    Helper function to check for characters that CANNOT stand alone.
+    """
+    if is_vowel(code) or \
+       is_coeng(code) or \
+       is_diacritic(code) or \
+       is_robat(code) or \
+       is_shifter(code) or \
+       is_final(code):
+        return True
+    return False
+
+
 def merge_temp_result(temp: list[str], result: str) -> str:
     for char in temp:
         if char != '':
@@ -226,10 +240,18 @@ def sort_khm_word(text: str) -> str:
         # If a character is not Khmer (like space, newline, etc.)
         # or it's an attaching character with no base, treat it as a separator.
         else:
-            result = merge_temp_result(temp, result)
-            temp = [""] * 10
-            result += char
-            i += 1
+            # Check if it's an invalid, orphaned dependent character.
+            if is_dependent_only(code):
+                # If it is, we simply DISCARD it by moving to the next character.
+                i += 1
+            # Otherwise, it's a legitimate separator (space, newline, etc.).
+            else:
+                # We KEEP it by adding it to the result.
+                result = merge_temp_result(temp, result) # Not really needed but safe
+                temp = [""] * 10
+                result += char
+                i += 1
+
             
     # After the loop, merge any leftover characters in the temp buffer
     if temp[0] != '':
@@ -328,10 +350,18 @@ def sort_word2sub(text: str) -> list[str]:
         # If a character is not Khmer (like space, newline, etc.)
         # or it's an attaching character with no base, treat it as a separator.
         else:
-            result.append(merge_temp(temp))
-            temp = [""] * 10
-            result.append(char)
             i += 1
+            # # Check if it's an invalid, orphaned dependent character.
+            # if is_dependent_only(code):
+            #     # If it is, we simply DISCARD it by moving to the next character.
+            #     i += 1
+            # # Otherwise, it's a legitimate separator (space, newline, etc.).
+            # else:
+            #     # We KEEP it by adding it to the result.
+            #     result.append(merge_temp(temp))
+            #     temp = [""] * 10
+            #     result.append(char)
+            #     i += 1
             
     # After the loop, merge any leftover characters in the temp buffer
     if temp[0] != '':
