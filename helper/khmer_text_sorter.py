@@ -240,17 +240,18 @@ def sort_khm_word(text: str) -> str:
         # If a character is not Khmer (like space, newline, etc.)
         # or it's an attaching character with no base, treat it as a separator.
         else:
-            # Check if it's an invalid, orphaned dependent character.
-            if is_dependent_only(code):
-                # If it is, we simply DISCARD it by moving to the next character.
-                i += 1
-            # Otherwise, it's a legitimate separator (space, newline, etc.).
-            else:
-                # We KEEP it by adding it to the result.
-                result = merge_temp_result(temp, result) # Not really needed but safe
-                temp = [""] * 10
-                result += char
-                i += 1
+            i += 1
+            # # Check if it's an invalid, orphaned dependent character.
+            # if is_dependent_only(code):
+            #     # If it is, we simply DISCARD it by moving to the next character.
+            #     i += 1
+            # # Otherwise, it's a legitimate separator (space, newline, etc.).
+            # else:
+            #     # We KEEP it by adding it to the result.
+            #     result = merge_temp_result(temp, result) # Not really needed but safe
+            #     temp = [""] * 10
+            #     result += char
+            #     i += 1
 
             
     # After the loop, merge any leftover characters in the temp buffer

@@ -197,15 +197,16 @@ def draw_texts_on_image(
 
     # Pick a text color that contrasts with the background
     text_color = get_contrast_color(bg, 0, 0, bg.width, bg.height)
+    
+    if random.random() < possibilities_for_new_font_size:
+        font_size = get_random_font_size(min_font_size=min_font_size, max_font_size=max_font_size)
+        font = ImageFont.truetype(chosen_font_path, font_size)
 
     for word in texts:
         if random.random() < possibilities_for_new_padding:
             x_padding, y_padding = get_random_img_padding(min_img_padding=min_img_padding, max_img_padding=max_img_padding)
         if random.random() < possibilities_for_new_line_spacing:
             line_spacing = get_random_line_spacing(min_line_spacing=min_line_spacing, max_line_spacing=max_line_spacing)
-        if random.random() < possibilities_for_new_font_size:
-            font_size = get_random_font_size(min_font_size=min_font_size, max_font_size=max_font_size)
-            font = ImageFont.truetype(chosen_font_path, font_size)
         if random.random() < possibilities_for_new_font:
             chosen_font_path = get_random_font(font_dir)
             font = ImageFont.truetype(chosen_font_path, font_size)
