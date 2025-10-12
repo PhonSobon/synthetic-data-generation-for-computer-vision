@@ -9,7 +9,8 @@ from helper.get_random import get_random_background, get_random_font, get_random
 from helper.yolo_coord import convert_to_yolo_format
 from helper.utils import read_text_file, save_label, save_xml_label
 from helper.xml_generator import generate_xml_content
-from helper.khmer_text_sorter import sort_text2sub
+# from helper.khmer_text_sorter import sort_text2sub
+from helper.khnormal import khnormal, testsyl
 
 
 dotenv.load_dotenv()
@@ -50,7 +51,7 @@ MIN_WORD_PADDING = int(os.getenv("MIN_WORD_PADDING", 2))
 MAX_WORD_PADDING = int(os.getenv("MAX_WORD_PADDING", 10))
 
 # TEXT FILE
-TEXT_FILE = os.getenv("TEXT_FILE", "oscar_kh_1_cleaned.txt")
+TEXT_FILE = os.getenv("TEXT_FILE", "Khmer Dictionary 2022.txt")
 TEXT_WORDS = read_text_file(TEXT_FILE)
 
 # PARAGRAPH LENGTH
@@ -118,7 +119,13 @@ def create_text_image_with_bbox() -> tuple[Image.Image, list[list[tuple[str, tup
 
     text_len = random.randint(MIN_PARAG_LENGTH, MAX_PARAG_LENGTH)
     texts = random.choices(TEXT_WORDS, k=text_len)
-    texts = sort_text2sub(texts)
+    # wordlist_len = len(TEXT_WORDS)
+    # texts = TEXT_WORDS[(start := random.randint(0, wordlist_len - text_len)) : start + text_len]
+
+    texts = ["".join(khnormal(text)) for text in texts] # normalize words
+    
+    # texts = khnormal("".join(texts)) # normalized text in subsyllables
+    # texts = testsyl("".join(texts))  # segment texts into subsyllables
 
     bg = get_random_background(IMAGE_SIZE, BACKGROUND_IMAGES_DIR, MIN_IMG_SCALE, MAX_IMG_SCALE)
 

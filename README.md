@@ -208,6 +208,15 @@ The code here is working like python loop.
 - Khmer fonts were collected from free and open sources.
 You can find the font here: [Khmer Fonts](https://sourceforge.net/projects/khmer-open-source/)
 - Backgrounds were curated for synthetic data purposes.
+- Khmer Normalizer code were collected from [Khnormal](https://github.com/sillsdev/khmer-character-specification/blob/master/python/scripts/khnormal)
+- Khmer Dictionary 2022 were collected from [Hugging Face: Khmer Dictionary 44k](https://huggingface.co/datasets/seanghay/khmer-dictionary-44k)
+
+---
+
+## Useful Resources
+
+- [Khmer word Normalizer](https://normalize.ភាសាខ្មែរ.com/)
+- [Khmer Encoding structure IDRI EDU](https://www.idri.edu.kh/research/khmer-encoding-structure/)
 
 ---
 
