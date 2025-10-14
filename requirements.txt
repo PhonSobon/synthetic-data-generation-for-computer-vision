@@ -2,3 +2,6 @@ pillow
 opencv-python
 python-dotenv
 regex
+torch
+transformers
+torchvision
