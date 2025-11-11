@@ -32,7 +32,7 @@ FONT_DIR = os.getenv("FONT_DIR", "fonts/")
 SAVE_DIR = os.getenv("SAVE_DIR", "synthetic_images/")
 LABEL_DIR = os.getenv("LABEL_DIR", "synthetic_labels/")
 XML_DIR = os.getenv("XML_DIR", "synthetic_xml_labels/")
-BACKGROUND_IMAGES_DIR = os.getenv("BACKGROUND_IMAGES_DIR", "background/")
+BACKGROUND_IMAGES_DIR = os.getenv("BACKGROUND_IMAGES_DIR", {"white": "#ffffff"})
 
 # FONT SIZE
 MIN_FONT_SIZE = int(os.getenv("MIN_FONT_SIZE", 20))

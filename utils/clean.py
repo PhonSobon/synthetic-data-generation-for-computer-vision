@@ -2,9 +2,6 @@ import re
 
 
 def clean_khmer_text(text):
-    # Define a regex pattern to match Khmer characters
-    # Unicode range for Khmer: \u1780-\u17FF
-    # Remove everything that is not Khmer characters or spaces
     cleaned_text = re.sub(r'[^\u1780-\u17FF\s]', '', text)
     return cleaned_text
 

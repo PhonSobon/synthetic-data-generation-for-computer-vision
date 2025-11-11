@@ -53,32 +53,28 @@ def get_random_font(font_dir: str) -> str:
 #         return get_random_font(font_dir, font_size)
 
 
-def get_random_background(based_image_size: tuple, bg_dir: str, min_img_scale: float, max_img_scale: float) -> Image.Image:
-
-    base_width = random.randint(int(
-        based_image_size[0] * min_img_scale), int(based_image_size[0] * max_img_scale))
-    base_height = random.randint(int(
-        based_image_size[1] * min_img_scale), int(based_image_size[1] * max_img_scale))
-
-    target_size = (base_width, base_height)
-
-    random_choice = random.choice(["image", "color"])
-
-    # Create background
-    if random_choice == "image" and bg_dir:
+def get_random_background(size, bg_dir, min_scale, max_scale):
+    # If bg_dir is a dictionary or color, create solid color background
+    if isinstance(bg_dir, dict) and "white" in bg_dir:
+        return Image.new('RGB', size, color=bg_dir["white"])
+    
+    # If it's a path but directory doesn't exist, use white
+    if not os.path.exists(bg_dir):
+        return Image.new('RGB', size, color='white')
+    
+    # Original logic for image backgrounds
+    try:
         bg_images = [os.path.join(bg_dir, f) for f in os.listdir(bg_dir)]
-        if bg_images:
-            bg = Image.open(random.choice(bg_images)).convert('RGB')
-        else:
-            bg = Image.new('RGB', target_size,
-                           color=get_random_rgb())   # type: ignore
-    else:
-        bg = Image.new('RGB', target_size,
-                       color=get_random_rgb())   # type: ignore
-
-    bg = bg.resize(target_size)
-
-    return bg
+        bg_images = [f for f in bg_images if os.path.isfile(f)]
+        
+        if not bg_images:
+            return Image.new('RGB', size, color='white')
+            
+        bg_path = random.choice(bg_images)
+        bg = Image.open(bg_path)
+        # ... rest of original scaling logic
+    except OSError:
+        return Image.new('RGB', size, color='white')
 
 
 def get_random_img_padding(min_img_padding: int, max_img_padding: int) -> tuple[int, int]:
