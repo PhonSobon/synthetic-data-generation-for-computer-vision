@@ -51,7 +51,7 @@ MIN_WORD_PADDING = int(os.getenv("MIN_WORD_PADDING", 2))
 MAX_WORD_PADDING = int(os.getenv("MAX_WORD_PADDING", 10))
 
 # TEXT FILE
-TEXT_FILE = os.getenv("TEXT_FILE", "Khmer Dictionary 2022.txt")
+TEXT_FILE = os.getenv("TEXT_FILE", "combine_clean.txt")
 TEXT_WORDS = read_text_file(TEXT_FILE)
 
 # PARAGRAPH LENGTH
