@@ -35,7 +35,7 @@ def get_random_font(font_dir: str) -> str:
 #                 font.getbbox(test_chars)
 #                 _VALID_FONTS_CACHE.append(font_path)
 #             except Exception as e:
-#                 print(f"⛔ Excluding invalid font: {f} - {str(e)}")
+#                 print(f"Excluding invalid font: {f} - {str(e)}")
 
 #         if not _VALID_FONTS_CACHE:
 #             raise RuntimeError(f"No valid fonts found in {font_dir}")
