@@ -9,8 +9,7 @@ from helper.get_random import get_random_background, get_random_font, get_random
 from helper.yolo_coord import convert_to_yolo_format
 from helper.utils import read_text_file, save_label, save_xml_label
 from helper.xml_generator import generate_xml_content
-# from helper.khmer_text_sorter import sort_text2sub
-from helper.khnormal import khnormal, testsyl
+from helper.khnormal import khnormal
 
 
 dotenv.load_dotenv()
@@ -52,15 +51,16 @@ MAX_WORD_PADDING = int(os.getenv("MAX_WORD_PADDING", 10))
 
 # TEXT FILE
 TEXT_FILE = os.getenv("TEXT_FILE", "combine_clean.txt")
-TEXT_WORDS = read_text_file(TEXT_FILE)
+USE_SPECIFIC_TEXT = os.getenv("USE_SPECIFIC_TEXT", "false").lower() == "true"
+SPECIFIC_TEXT_FILE = os.getenv("SPECIFIC_TEXT_FILE", "specific_text.txt")
 
 # PARAGRAPH LENGTH
 MIN_PARAG_LENGTH = int(os.getenv("MIN_PARAG_LENGTH", 1))
 MAX_PARAG_LENGTH = int(os.getenv("MAX_PARAG_LENGTH", 5000))
 
 # BOUNDING BOX PADDING
-BBOX_WIDTH_PADDING = int(os.getenv("BBOX_WIDTH_PADDING", 1))  # Adjust as needed
-BBOX_HEIGHT_PADDING = int(os.getenv("BBOX_HEIGHT_PADDING", 2))  # Adjust as needed
+BBOX_WIDTH_PADDING = int(os.getenv("BBOX_WIDTH_PADDING", 1))
+BBOX_HEIGHT_PADDING = int(os.getenv("BBOX_HEIGHT_PADDING", 2))
 
 # ARTIFACTS
 ARTIFACT_POSSIBILITIES = float(os.getenv("ARTIFACT_POSSIBILITIES", 0.5))
@@ -70,8 +70,7 @@ JPEG_COMPRESSION_RANGE = tuple(map(int, jpeg_compression_range_str.split(',')))
 # MOTION BLUR
 MOTION_BLUR_POSSIBILITIES = float(os.getenv("MOTION_BLUR_POSSIBILITIES", 0.3))
 motion_blur_kernel_size_str = os.getenv("MOTION_BLUR_KERNEL_SIZE_RANGE", "3,3")
-MOTION_BLUR_KERNEL_SIZE_RANGE = tuple(
-    map(int, motion_blur_kernel_size_str.split(',')))
+MOTION_BLUR_KERNEL_SIZE_RANGE = tuple(map(int, motion_blur_kernel_size_str.split(',')))
 
 # BRIGHTNESS ADJUSTMENT
 alpha_range_str = os.getenv("ALPHA_RANGE", "0.8,1.2")
@@ -92,7 +91,7 @@ VAL_SCALE = tuple(map(float, val_scale_str.split(',')))
 
 MAX_ROTATION = float(os.getenv("MAX_ROTATION", "5.0"))
 
-# NEW PADDING, LINE SPACING, WORD PADDING, FONT SIZE, FONT, Y, X
+# POSSIBILITIES FOR VARIATIONS
 POSSIBILITIES_FOR_NEW_PADDING = float(os.getenv("POSSIBILITIES_FOR_NEW_PADDING", 0.005))
 POSSIBILITIES_FOR_NEW_LINE_SPACING = float(os.getenv("POSSIBILITIES_FOR_NEW_LINE_SPACING", 0.005))
 POSSIBILITIES_FOR_NEW_WORD_PADDING = float(os.getenv("POSSIBILITIES_FOR_NEW_WORD_PADDING", 0.005))
@@ -114,18 +113,39 @@ POSSIBILITIES_FOR_NEW_COLOR = float(os.getenv("POSSIBILITIES_FOR_NEW_COLOR", 0.0
 # === END CONFIGURATION ===
 
 
-def create_text_image_with_bbox() -> tuple[Image.Image, list[list[tuple[str, tuple[float, float, float, float]]]], list[tuple[float, float, float, float]]]:
-    """Create an image with text and bounding boxes"""
-
-    text_len = random.randint(MIN_PARAG_LENGTH, MAX_PARAG_LENGTH)
-    texts = random.choices(TEXT_WORDS, k=text_len)
-    # wordlist_len = len(TEXT_WORDS)
-    # texts = TEXT_WORDS[(start := random.randint(0, wordlist_len - text_len)) : start + text_len]
-
-    texts = ["".join(khnormal(text)) for text in texts] # normalize words
+def load_specific_texts() -> list[str]:
+    """Load specific text from file, with each line being one text sample"""
+    if not os.path.exists(SPECIFIC_TEXT_FILE):
+        print(f"Warning: {SPECIFIC_TEXT_FILE} not found. Creating example file.")
+        with open(SPECIFIC_TEXT_FILE, 'w', encoding='utf-8') as f:
+            f.write("ឃាត់ជនសង្ស័យម្នាក់បន្ទាប់ពីធ្វើសកម្មភាពលួចយកកាបូបលុយជនរងគ្រោះ\n")
+            f.write("នេះជាឧទាហរណ៍នៃអត្ថបទភាសាខ្មែរ\n")
     
-    # texts = khnormal("".join(texts)) # normalized text in subsyllables
-    # texts = testsyl("".join(texts))  # segment texts into subsyllables
+    return read_text_file(SPECIFIC_TEXT_FILE)
+
+
+def create_text_image_with_bbox(specific_text: str = None, word_list: list[str] = None, start_idx: int = 0) -> tuple[Image.Image, list[list[tuple[str, tuple[float, float, float, float]]]], list[tuple[float, float, float, float]], int]:
+    """Create an image with text and bounding boxes
+    
+    Returns: (image, lines, annotations, next_start_idx)
+    """
+
+    if specific_text:
+        texts = specific_text.split()
+        next_idx = start_idx
+    elif word_list is not None:
+        text_len = random.randint(MIN_PARAG_LENGTH, MAX_PARAG_LENGTH)
+        end_idx = min(start_idx + text_len, len(word_list))
+        texts = word_list[start_idx:end_idx]
+        next_idx = end_idx if end_idx < len(word_list) else 0
+    else:
+        TEXT_WORDS = read_text_file(TEXT_FILE)
+        text_len = random.randint(MIN_PARAG_LENGTH, MAX_PARAG_LENGTH)
+        texts = random.choices(TEXT_WORDS, k=text_len)
+        next_idx = start_idx
+
+    # CRITICAL: Normalize each word individually to preserve word boundaries
+    texts = ["".join(khnormal(text)) for text in texts]
 
     bg = get_random_background(IMAGE_SIZE, BACKGROUND_IMAGES_DIR, MIN_IMG_SCALE, MAX_IMG_SCALE)
 
@@ -141,7 +161,6 @@ def create_text_image_with_bbox() -> tuple[Image.Image, list[list[tuple[str, tup
         MAX_FONT_SIZE,
         MIN_WORD_PADDING,
         MAX_WORD_PADDING,
-
         POSSIBILITIES_FOR_NEW_PADDING,
         POSSIBILITIES_FOR_NEW_LINE_SPACING,
         POSSIBILITIES_FOR_NEW_WORD_PADDING,
@@ -153,7 +172,7 @@ def create_text_image_with_bbox() -> tuple[Image.Image, list[list[tuple[str, tup
         BBOX_WIDTH_PADDING, BBOX_HEIGHT_PADDING,
     )
 
-    return drawn_image, lines, annotations
+    return drawn_image, lines, annotations, next_idx
 
 
 def draw_texts_on_image(
@@ -179,17 +198,13 @@ def draw_texts_on_image(
     bbox_width_padding: int, bbox_height_padding: int,
 ) -> tuple[Image.Image, list[list[tuple[str, tuple[float, float, float, float]]]], list[tuple[float, float, float, float]]]:
     """
-    Draws a list of words onto `bg`, flowing them in lines
-    with fixed `font_size`. Returns the annotated image
-    plus a list of (x, y, w, h) for each drawn word.
+    Draws words continuously (no spaces) onto bg, with individual bounding boxes per word.
     """
 
     x_padding, y_padding = get_random_img_padding(min_img_padding=min_img_padding, max_img_padding=max_img_padding)
     line_spacing = get_random_line_spacing(min_line_spacing=min_line_spacing, max_line_spacing=max_line_spacing)
     font_size = get_random_font_size(min_font_size=min_font_size, max_font_size=max_font_size)
-    word_padding = get_random_word_padding(min_word_padding=min_word_padding, max_word_padding=max_word_padding)
 
-    # Pick one font file at random, and load it once at `font_size`.
     chosen_font_path = get_random_font(font_dir)
     font = ImageFont.truetype(chosen_font_path, font_size)
     
@@ -202,7 +217,6 @@ def draw_texts_on_image(
     current_y = y_padding
     max_line_height = 0
 
-    # Pick a text color that contrasts with the background
     text_color = get_contrast_color(bg, 0, 0, bg.width, bg.height)
     
     if random.random() < possibilities_for_new_font_size:
@@ -217,8 +231,6 @@ def draw_texts_on_image(
         if random.random() < possibilities_for_new_font:
             chosen_font_path = get_random_font(font_dir)
             font = ImageFont.truetype(chosen_font_path, font_size)
-        if random.random() < possibilities_for_new_word_padding:
-            word_padding = get_random_word_padding(min_word_padding=min_word_padding, max_word_padding=max_word_padding)
         if random.random() < possibilities_for_new_y:
             current_y += random.randint(*new_y_range)
         if random.random() < possibilities_for_new_x:
@@ -226,31 +238,30 @@ def draw_texts_on_image(
         if random.random() < possibilities_for_new_color:
             text_color = get_contrast_color(bg, 0, 0, bg.width, bg.height)
 
-        # Measure this word
-        # print(word)
         bbox = font.getbbox(word)
-        left, top, right, bottom = bbox  # Unpack the bbox values
+        left, top, right, bottom = bbox
         text_width = right - left
         text_height = bottom - top
 
-        # If it doesn’t fit on this line, wrap to next
-        if current_x + (text_width + word_padding) > (bg.width - x_padding):
+        # Check if word fits on current line
+        if current_x + text_width > (bg.width - x_padding):
             if current_line:
                 lines.append(current_line)
-                current_line = []        # Save XML content
+                current_line = []
             current_x = x_padding
             current_y += max_line_height + line_spacing
             max_line_height = 0
 
-        # If no more vertical space, stop early
-        if current_y + (top + text_height) > (bg.height - y_padding):  # Adjust with top offset
+        # Check vertical space
+        if current_y + (top + text_height) > (bg.height - y_padding):
             break
 
+        # Draw the word
         draw.text((current_x, current_y), word, font=font, fill=text_color)
         
-        # Calculate padded bounding box
-        x = current_x + left - bbox_width_padding  # Expand left
-        y = current_y + top - bbox_height_padding  # Expand top
+        # Calculate bounding box with padding
+        x = current_x + left - bbox_width_padding
+        y = current_y + top - bbox_height_padding
         text_width_padded = text_width + 2 * bbox_width_padding
         text_height_padded = text_height + 2 * bbox_height_padding
 
@@ -258,15 +269,14 @@ def draw_texts_on_image(
         current_line.append(word_info)
         annotations.append((x, y, text_width_padded, text_height_padded))
 
-        # Advance the cursor with the full width (including right)
-        current_x += (right - left) + word_padding  # Use right - left instead of text_width for consistency
-        max_line_height = max(max_line_height, (bottom - top))  # Use actual height
+        # Move cursor WITHOUT spacing (continuous text)
+        current_x += (right - left)
+        max_line_height = max(max_line_height, (bottom - top))
 
     if current_line:
         lines.append(current_line)
 
     return bg, lines, annotations
-
 
 
 if __name__ == "__main__":
@@ -276,8 +286,33 @@ if __name__ == "__main__":
     _to = int(sys.argv[1])
     _step = int(sys.argv[2])
 
+    specific_texts = None
+    word_list = None
+    current_word_idx = 0
+    
+    if USE_SPECIFIC_TEXT:
+        specific_texts = load_specific_texts()
+        print(f"Loaded {len(specific_texts)} specific text samples")
+    else:
+        word_list = read_text_file(TEXT_FILE)
+        print(f"Loaded {len(word_list)} words from {TEXT_FILE}")
+        print(f"Using words sequentially (not randomly)")
+
     for i in range(_from, _to, _step):
-        img, lines, bbox = create_text_image_with_bbox()
+        if specific_texts:
+            text_idx = i % len(specific_texts)
+            current_text = specific_texts[text_idx]
+            img, lines, bbox, _ = create_text_image_with_bbox(specific_text=current_text)
+            print(f"Generating image {i} with text: {current_text[:50]}...")
+        elif word_list:
+            img, lines, bbox, current_word_idx = create_text_image_with_bbox(
+                word_list=word_list, 
+                start_idx=current_word_idx
+            )
+            words_used = sum(len(line) for line in lines)
+            print(f"Image {i}: Used {words_used} words starting from index {current_word_idx - words_used}")
+        else:
+            img, lines, bbox, _ = create_text_image_with_bbox()
 
         img = apply_artifact(img, posssibility=ARTIFACT_POSSIBILITIES,
                              possible_compression=JPEG_COMPRESSION_RANGE)
@@ -285,7 +320,6 @@ if __name__ == "__main__":
                                 possible_size=MOTION_BLUR_KERNEL_SIZE_RANGE)
         img = rand_brightness_contrast(
             img, alpha_range=ALPHA_RANGE, beta_range=BETA_RANGE)
-
         img = apply_color_jitter(img, possibility=COLOR_JITTER_POSSIBILITES, 
                                  hue_delta=HUE_DELTA, sat_scale=SAT_SCALE, val_scale=VAL_SCALE)
 
