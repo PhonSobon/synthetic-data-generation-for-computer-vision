@@ -17,10 +17,33 @@ dotenv.load_dotenv()
 
 # === CONFIGURATION ===
 
-# IMAGE SIZE
-image_size_str = os.getenv("IMAGE_SIZE", "775,550")
-image_size_list = list(map(int, image_size_str.split(',')))[:2]
-IMAGE_SIZE = image_size_list[0], image_size_list[1]
+# A4 PAGE SIZE AT 300 DPI (8.27 x 11.69 inches)
+# At 300 DPI: width = 2480px, height = 3508px
+# At 200 DPI: width = 1654px, height = 2339px
+DPI = int(os.getenv("DPI", 300))
+A4_WIDTH_INCHES = 8.27
+A4_HEIGHT_INCHES = 11.69
+
+# Calculate image size based on DPI
+IMAGE_WIDTH = int(A4_WIDTH_INCHES * DPI)
+IMAGE_HEIGHT = int(A4_HEIGHT_INCHES * DPI)
+IMAGE_SIZE = (IMAGE_WIDTH, IMAGE_HEIGHT)
+
+# MARGINS (converted to pixels based on DPI)
+# Top: 0.6 inches (1.5 cm)
+# Bottom: 0.6 inches (1.5 cm)
+# Left: 0.78 inches (2 cm)
+# Right: 0.6 inches (1.5 cm)
+TOP_MARGIN_INCHES = float(os.getenv("TOP_MARGIN_INCHES", 0.6))
+BOTTOM_MARGIN_INCHES = float(os.getenv("BOTTOM_MARGIN_INCHES", 0.6))
+LEFT_MARGIN_INCHES = float(os.getenv("LEFT_MARGIN_INCHES", 0.78))
+RIGHT_MARGIN_INCHES = float(os.getenv("RIGHT_MARGIN_INCHES", 0.6))
+
+# Convert margins to pixels
+TOP_MARGIN_PX = int(TOP_MARGIN_INCHES * DPI)
+BOTTOM_MARGIN_PX = int(BOTTOM_MARGIN_INCHES * DPI)
+LEFT_MARGIN_PX = int(LEFT_MARGIN_INCHES * DPI)
+RIGHT_MARGIN_PX = int(RIGHT_MARGIN_INCHES * DPI)
 
 # IMAGE SCALE
 MIN_IMG_SCALE = float(os.getenv("MIN_IMG_SCALE", 0.5))
@@ -33,17 +56,30 @@ LABEL_DIR = os.getenv("LABEL_DIR", "synthetic_labels/")
 XML_DIR = os.getenv("XML_DIR", "synthetic_xml_labels/")
 BACKGROUND_IMAGES_DIR = os.getenv("BACKGROUND_IMAGES_DIR", {"white": "#ffffff"})
 
-# FONT SIZE
-MIN_FONT_SIZE = int(os.getenv("MIN_FONT_SIZE", 20))
-MAX_FONT_SIZE = int(os.getenv("MAX_FONT_SIZE", 100))
+# FONT SIZE (typical document font: 11-12pt at 300 DPI ≈ 44-48px)
+# For 12pt font at 300 DPI: 12 * 300/72 = 50px
+FONT_SIZE_PT = int(os.getenv("FONT_SIZE_PT", 12))
+FONT_SIZE_PX = int(FONT_SIZE_PT * DPI / 72)
 
-# IMAGE PADDING
-MIN_IMG_PADDING = int(os.getenv("MIN_IMG_PADDING", 10))
-MAX_IMG_PADDING = int(os.getenv("MAX_IMG_PADDING", 100))
+MIN_FONT_SIZE = int(os.getenv("MIN_FONT_SIZE", FONT_SIZE_PX))
+MAX_FONT_SIZE = int(os.getenv("MAX_FONT_SIZE", FONT_SIZE_PX))
+
+# IMAGE PADDING (use calculated margins)
+MIN_IMG_PADDING = LEFT_MARGIN_PX
+MAX_IMG_PADDING = LEFT_MARGIN_PX
 
 # LINE SPACING
-MIN_LINE_SPACING = int(os.getenv("MIN_LINE_SPACING", 6))
-MAX_LINE_SPACING = int(os.getenv("MAX_LINE_SPACING", 30))
+# Single spacing (1.0) = font size
+# For paragraph spacing: 6pt at 300 DPI = 6 * 300/72 = 25px
+PARAGRAPH_SPACING_PT = float(os.getenv("PARAGRAPH_SPACING_PT", 6))
+PARAGRAPH_SPACING_PX = int(PARAGRAPH_SPACING_PT * DPI / 72)
+
+# Line spacing = 1.0 (single space) means spacing = font_size
+LINE_SPACING_MULTIPLIER = float(os.getenv("LINE_SPACING_MULTIPLIER", 1.0))
+LINE_SPACING_PX = int(FONT_SIZE_PX * LINE_SPACING_MULTIPLIER)
+
+MIN_LINE_SPACING = int(os.getenv("MIN_LINE_SPACING", LINE_SPACING_PX))
+MAX_LINE_SPACING = int(os.getenv("MAX_LINE_SPACING", LINE_SPACING_PX))
 
 # WORD PADDING
 MIN_WORD_PADDING = int(os.getenv("MIN_WORD_PADDING", 2))
@@ -198,12 +234,20 @@ def draw_texts_on_image(
     bbox_width_padding: int, bbox_height_padding: int,
 ) -> tuple[Image.Image, list[list[tuple[str, tuple[float, float, float, float]]]], list[tuple[float, float, float, float]]]:
     """
-    Draws words continuously (no spaces) onto bg, with individual bounding boxes per word.
+    Draws words continuously (no spaces) onto bg with A4 margins and spacing.
     """
 
-    x_padding, y_padding = get_random_img_padding(min_img_padding=min_img_padding, max_img_padding=max_img_padding)
-    line_spacing = get_random_line_spacing(min_line_spacing=min_line_spacing, max_line_spacing=max_line_spacing)
-    font_size = get_random_font_size(min_font_size=min_font_size, max_font_size=max_font_size)
+    # Use fixed margins instead of random padding
+    x_padding_left = LEFT_MARGIN_PX
+    x_padding_right = RIGHT_MARGIN_PX
+    y_padding_top = TOP_MARGIN_PX
+    y_padding_bottom = BOTTOM_MARGIN_PX
+    
+    # Use single line spacing (1.0)
+    line_spacing = LINE_SPACING_PX
+    
+    # Use fixed font size (12pt by default)
+    font_size = FONT_SIZE_PX
 
     chosen_font_path = get_random_font(font_dir)
     font = ImageFont.truetype(chosen_font_path, font_size)
@@ -213,21 +257,16 @@ def draw_texts_on_image(
     current_line = []
     lines = []
 
-    current_x = x_padding
-    current_y = y_padding
+    current_x = x_padding_left
+    current_y = y_padding_top
     max_line_height = 0
 
     text_color = get_contrast_color(bg, 0, 0, bg.width, bg.height)
     
-    if random.random() < possibilities_for_new_font_size:
-        font_size = get_random_font_size(min_font_size=min_font_size, max_font_size=max_font_size)
-        font = ImageFont.truetype(chosen_font_path, font_size)
+    # Calculate usable width (page width minus left and right margins)
+    usable_width = bg.width - x_padding_left - x_padding_right
 
     for word in texts:
-        if random.random() < possibilities_for_new_padding:
-            x_padding, y_padding = get_random_img_padding(min_img_padding=min_img_padding, max_img_padding=max_img_padding)
-        if random.random() < possibilities_for_new_line_spacing:
-            line_spacing = get_random_line_spacing(min_line_spacing=min_line_spacing, max_line_spacing=max_line_spacing)
         if random.random() < possibilities_for_new_font:
             chosen_font_path = get_random_font(font_dir)
             font = ImageFont.truetype(chosen_font_path, font_size)
@@ -243,17 +282,17 @@ def draw_texts_on_image(
         text_width = right - left
         text_height = bottom - top
 
-        # Check if word fits on current line
-        if current_x + text_width > (bg.width - x_padding):
+        # Check if word fits on current line (respect right margin)
+        if current_x + text_width > (bg.width - x_padding_right):
             if current_line:
                 lines.append(current_line)
                 current_line = []
-            current_x = x_padding
+            current_x = x_padding_left
             current_y += max_line_height + line_spacing
             max_line_height = 0
 
-        # Check vertical space
-        if current_y + (top + text_height) > (bg.height - y_padding):
+        # Check vertical space (respect bottom margin)
+        if current_y + text_height > (bg.height - y_padding_bottom):
             break
 
         # Draw the word
