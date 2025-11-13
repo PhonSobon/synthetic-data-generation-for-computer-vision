@@ -91,8 +91,8 @@ USE_SPECIFIC_TEXT = os.getenv("USE_SPECIFIC_TEXT", "false").lower() == "true"
 SPECIFIC_TEXT_FILE = os.getenv("SPECIFIC_TEXT_FILE", "specific_text.txt")
 
 # PARAGRAPH LENGTH
-MIN_PARAG_LENGTH = int(os.getenv("MIN_PARAG_LENGTH", 1))
-MAX_PARAG_LENGTH = int(os.getenv("MAX_PARAG_LENGTH", 5000))
+MIN_PARAG_LENGTH = int(os.getenv("MIN_PARAG_LENGTH", 10))
+MAX_PARAG_LENGTH = int(os.getenv("MAX_PARAG_LENGTH", 500))
 
 # BOUNDING BOX PADDING
 BBOX_WIDTH_PADDING = int(os.getenv("BBOX_WIDTH_PADDING", 1))
